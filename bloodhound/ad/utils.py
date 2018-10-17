@@ -30,6 +30,10 @@ import dns
 from dns import resolver, reversename
 from bloodhound.ad.structures import LDAP_SID
 
+# From https://stackoverflow.com/a/40675868
+def nested_get(dictionary, *keys):
+    return reduce(lambda d, key: d.get(key, None) if isinstance(d, dict) else None, keys, dictionary)
+
 """
 """
 class ADUtils(object):
@@ -185,14 +189,14 @@ class ADUtils(object):
         account = ''
         dn = ''
         domain = ''
-        if 'sAMAccountName' in entry['attributes']:
-            account = entry['attributes']['sAMAccountName']
-        if entry['attributes']['distinguishedName']:
-            dn = entry['attributes']['distinguishedName']
+        if nested_get(entry, 'attributes', 'sAMAccountName'):
+            account = nested_get(entry, 'attributes', 'sAMAccountName')
+        if nested_get(entry, 'attributes', 'distinguishedName'):
+            dn = nested_get(entry, 'attributes', 'distinguishedName')
             domain = ADUtils.ldap2domain(dn)
 
         resolved['principal'] = unicode('%s@%s' % (account, domain)).upper()
-        if not 'sAMAccountName' in entry['attributes']:
+        if not nested_get(entry, 'attributes', 'sAMAccountName'):
             # TODO: Fix foreign users
             # requires cross-forest resolving
             if 'ForeignSecurityPrincipals' in dn:
@@ -208,7 +212,7 @@ class ADUtils(object):
             else:
                 resolved['type'] = 'unknown'
         else:
-            accountType = entry['attributes']['sAMAccountType']
+            accountType = nested_get(entry, 'attributes', 'sAMAccountType')
             if accountType in [268435456, 268435457, 536870912, 536870913]:
                 resolved['type'] = 'group'
             elif accountType in [805306369]:
